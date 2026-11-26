@@ -1,0 +1,11 @@
+.env*
+.vercel
+web/data.json
+__pycache__/
+*.pyc
+*.log
+*.db
+*.sqlite*
+*-bak
+*.bak
+.DS_Store

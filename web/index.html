@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>UangKu</title>
+<meta name="theme-color" content="#0B0E13">
+<meta name="description" content="Aset + arus kas + investasi">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="pullRef" class="pull-ref" aria-hidden="true"><span class="pull-spinner"></span><span id="pullRefText">Tarik untuk refresh</span></div>
+<header class="topbar">
+  <p class="wordmark">UangKu</p>
+  <div class="month-step" id="monthStep">
+    <button id="mPrev" aria-label="Bulan sebelumnya">‹</button>
+    <span id="monthLabel">November 2026</span>
+    <button id="mNext" aria-label="Bulan berikutnya">›</button>
+  </div>
+  <button id="settingsBtn" class="icon-btn" aria-label="Pengaturan">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+  </button>
+</header>
+
+<main>
+  <!-- ASET -->
+  <section id="tab-aset" class="tab active">
+    <div class="hero">
+      <p class="eyebrow">Aset bersih</p>
+      <p class="hero-total num" id="netAssets">…</p>
+      <p class="hero-sub" id="accMeta">memuat…</p>
+    </div>
+    <div id="accGroups"></div>
+    <div class="card">
+      <button class="collapse-toggle" data-target="aFormWrap" data-label="Tambah akun" aria-expanded="false">+ Tambah akun</button>
+      <div id="aFormWrap" class="collapse-body hidden">
+        <div class="form-grid">
+          <input type="text" id="aName" placeholder="Nama akun" aria-label="Nama akun">
+          <select id="aKind" aria-label="Jenis akun">
+            <option value="bank">Bank</option>
+            <option value="ewallet">E-Wallet</option>
+            <option value="invest">Investasi</option>
+            <option value="cash">Tunai</option>
+            <option value="other">Lainnya</option>
+          </select>
+          <input type="text" id="aBal" class="span2" inputmode="numeric" placeholder="Saldo (Rp)" aria-label="Saldo">
+        </div>
+        <button id="aAdd" class="btn primary">Tambah akun</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ARUS KAS -->
+  <section id="tab-arus" class="tab">
+    <div class="flow-sum">
+      <div><p class="eyebrow">Masuk</p><p class="num flow-in" id="flowIn">…</p></div>
+      <div><p class="eyebrow">Keluar</p><p class="num flow-out" id="flowOut">…</p></div>
+      <div><p class="eyebrow">Surplus</p><p class="num" id="flowSur">…</p></div>
+    </div>
+    <div class="seg" role="group" aria-label="Arus kas">
+      <button id="arusSubSummary" class="seg-btn active" aria-pressed="true">Ringkasan</button>
+      <button id="arusSubHistory" class="seg-btn" aria-pressed="false">Riwayat</button>
+    </div>
+    <div id="arusSummary">
+      <div class="card">
+        <button id="fFormToggle" class="collapse-toggle" data-target="fFormWrap" data-label="Catat transaksi" aria-expanded="false">+ Catat transaksi</button>
+        <div id="fFormWrap" class="collapse-body hidden">
+          <div class="seg" role="group" aria-label="Arah">
+            <button id="dirOut" class="seg-btn active" aria-pressed="true">Keluar</button>
+            <button id="dirIn" class="seg-btn" aria-pressed="false">Masuk</button>
+          </div>
+          <div class="form-grid">
+            <input type="text" id="fAmount" inputmode="numeric" placeholder="Rp" aria-label="Nominal">
+            <input type="text" id="fNote" placeholder="Keterangan" aria-label="Keterangan">
+            <select id="fCat" aria-label="Kategori"></select>
+            <select id="fAcc" aria-label="Akun"><option value="">Tanpa akun</option></select>
+            <input type="date" id="fDate" aria-label="Tanggal">
+          </div>
+          <div class="row">
+            <button id="fAdd" class="btn primary">Catat</button>
+            <button id="fCancel" class="btn hidden">Batal</button>
+          </div>
+          <p id="editHint" class="hint hidden"></p>
+        </div>
+      </div>
+      <h2>Ke mana perginya</h2>
+      <div id="mapList" class="map"></div>
+    </div>
+    <div id="arusHistory" class="hidden">
+      <div class="row-between">
+        <h2>Riwayat</h2>
+        <select id="filterDir" aria-label="Filter arah">
+          <option value="">Semua</option><option value="out">Keluar</option><option value="in">Masuk</option>
+        </select>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <select id="filterCat" aria-label="Filter kategori"></select>
+        <input id="txSearch" type="search" placeholder="Cari keterangan…" aria-label="Cari transaksi">
+      </div>
+      <div id="txList"></div>
+    </div>
+  </section>
+
+  <!-- GRAFIK -->
+  <section id="tab-grafik" class="tab">
+    <h2>Donat pengeluaran konsumtif</h2>
+    <div class="card donut-card">
+      <p class="hint">Tanpa investasi &amp; tabungan — itu uang yang dipindah, bukan dihabiskan.</p>
+      <div id="donutWrap" class="donut-wrap"></div>
+      <div id="donutLegend" class="donut-legend"></div>
+    </div>
+    <div id="lainCard" class="card donut-card hidden">
+      <h2>Rincian "Lainnya" — dari keteranganmu</h2>
+      <div id="lainWrap" class="donut-wrap"></div>
+      <div id="lainLegend" class="donut-legend"></div>
+    </div>
+    <div class="card">
+      <h2>Pengeluaran terbesar bulan ini</h2>
+      <div id="topTx"></div>
+    </div>
+  </section>
+
+  <!-- DETAIL KATEGORI (layar sendiri, dibuka dari bar Arus Kas / legenda donat) -->
+  <section id="tab-detail" class="tab">
+    <button id="detailBack" class="detail-back" type="button">‹ Arus Kas</button>
+    <h2 id="detailTitle"></h2>
+    <div class="card donut-card">
+      <p class="hint" id="detailSub"></p>
+      <div class="map-bar"><div id="detailBar"></div></div>
+      <div id="detailWrap" class="donut-wrap"></div>
+      <div id="detailLegend" class="donut-legend"></div>
+    </div>
+    <div class="card">
+      <h2>Rincian transaksi</h2>
+      <div id="detailList"></div>
+    </div>
+  </section>
+
+  <!-- INVESTASI -->
+  <section id="tab-investasi" class="tab">
+    <div class="hero">
+      <p class="eyebrow">Nilai investasi</p>
+      <p class="hero-total num" id="invTotal">…</p>
+      <p class="hero-sub" id="invPnl"></p>
+    </div>
+    <h2>Portofolio</h2>
+    <div id="invList"></div>
+    <div class="card">
+      <button class="collapse-toggle" data-target="iFormWrap" data-label="Tambah posisi" aria-expanded="false">+ Tambah posisi</button>
+      <div id="iFormWrap" class="collapse-body hidden">
+        <div class="form-grid">
+          <select id="iKind" aria-label="Jenis"><option value="saham">Saham</option><option value="rdpu">RDPU</option><option value="emas">Emas</option></select>
+          <input type="text" id="iSymbol" placeholder="Simbol" aria-label="Simbol">
+          <input type="number" id="iQty" step="any" placeholder="Jumlah (lot / unit)" aria-label="Jumlah (lot / unit)">
+          <input type="number" id="iAvg" step="any" placeholder="Harga beli (Rp)" aria-label="Harga beli rata-rata (Rp)">
+        </div>
+        <button id="iAdd" class="btn primary">Tambah posisi</button>
+      </div>
+    </div>
+    <p class="hint">Harga diperbarui berkala. Angka "diperbarui" menunjukkan keaktualannya.</p>
+  </section>
+  <footer id="verLine" class="ver"></footer>
+</main>
+
+<nav class="bottomnav">
+  <button data-tab="aset" class="active">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M3 10h18"/><path d="M7 15h4"/></svg>
+    <span>Aset</span>
+  </button>
+  <button data-tab="arus">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 16V8m0 0L4 11m3-3l3 3"/><path d="M17 8v8m0 0l3-3m-3 3l-3-3"/></svg>
+    <span>Arus Kas</span>
+  </button>
+  <button data-tab="grafik">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>
+    <span>Grafik</span>
+  </button>
+  <button data-tab="investasi">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg>
+    <span>Investasi</span>
+  </button>
+</nav>
+
+<div id="settingsModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+  <div class="modal-card">
+    <button id="sCloseX" class="modal-x" aria-label="Tutup">✕</button>
+    <h2 id="settingsTitle">Pengaturan</h2>
+    <p id="dataInfo" class="hint"></p>
+    <div class="row">
+      <button id="dExport" class="btn primary">Unduh cadangan</button>
+      <label class="btn" for="dImport" style="cursor:pointer">Pulihkan cadangan</label>
+      <input type="file" id="dImport" accept="application/json" class="hidden">
+    </div>
+    <div class="row" style="margin-top:8px">
+      <button id="dResync" class="btn">Muat ulang dari server</button>
+      <button id="sClose" class="btn">Tutup</button>
+    </div>
+    <h3 class="modal-h">Perubahan lokal</h3>
+    <p id="localInfo" class="hint"></p>
+    <div class="row">
+      <button id="dResetLocal" class="btn">Reset perubahan lokal</button>
+    </div>
+    <h3 class="modal-h">Aktivitas terakhir</h3>
+    <div id="auditLog" class="audit"></div>
+  </div>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+<script src="app.js"></script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(()=>{}));
+}
+</script>
+</body>
+</html>
