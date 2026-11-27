@@ -14,6 +14,37 @@ Live: https://uangku-ahmu1.vercel.app
 
 Alur data satu arah: Supabase → `export_snapshot.py` → `web/data.json` → Vercel → PWA. Edit permanen harus dilakukan di Supabase lewat CLI/chat, bukan hanya di PWA.
 
+## Multi-user (API key per owner)
+
+Satu deployment UangKu bisa dipakai beberapa user. Data dipisah dengan `owner_id`:
+
+- `ade` — data Ade Hilman.
+- `pacar` — data pasangan; akun awal id 16 `Utama` saldo 0.
+
+Setup sekali:
+
+1. Jalankan `tracker/migration-multiuser.sql` di Supabase SQL Editor.
+2. Set env Vercel production: `SUPABASE_URL` dan `SUPABASE_SERVICE_ROLE_KEY`.
+3. Buat API key per owner; simpan hanya hash SHA-256 di tabel `api_keys`.
+4. PWA: buka Pengaturan → tempel API key → Simpan.
+5. Muse user lain mencatat lewat API, tanpa deploy Vercel/Supabase sendiri:
+
+```bash
+curl -X POST https://uangku-ahmu1.vercel.app/api/transactions \
+  -H "Authorization: Bearer <API_KEY_USER>" \
+  -H "Content-Type: application/json" \
+  -d '{"amount":20000,"note":"Kopi","direction":"out","category":"makan","date":"2026-11-27","account_id":16}'
+```
+
+Endpoint:
+
+- `GET /api/snapshot` — snapshot owner dari API key.
+- `GET /api/accounts` — daftar akun owner.
+- `POST /api/accounts` — tambah akun owner.
+- `POST /api/transactions` — catat transaksi owner dan update saldo akun.
+
+CLI lokal juga mendukung `--owner` / env `UANGKU_OWNER` (default `ade`).
+
 ## Quick start
 
 ### 1. Prasyarat

@@ -94,48 +94,48 @@ def main():
     sub = ap.add_subparsers(dest="cmd", required=True)
     for name in ("out", "in"):
         a = sub.add_parser(name); a.add_argument("amount", type=int); a.add_argument("note")
-        a.add_argument("--cat", default="lain-lain"); a.add_argument("--date"); a.add_argument("--acc", type=int)
+        a.add_argument("--cat", default="lain-lain"); a.add_argument("--date"); a.add_argument("--acc", type=int); a.add_argument("--owner", default=os.environ.get("UANGKU_OWNER", "ade"))
     a = sub.add_parser("acc-add"); a.add_argument("name"); a.add_argument("--kind", default="bank")
-    a.add_argument("--balance", type=float, default=0)
-    a = sub.add_parser("acc-balance"); a.add_argument("id", type=int); a.add_argument("balance", type=float)
-    sub.add_parser("acc-list")
+    a.add_argument("--balance", type=float, default=0); a.add_argument("--owner", default=os.environ.get("UANGKU_OWNER", "ade"))
+    a = sub.add_parser("acc-balance"); a.add_argument("id", type=int); a.add_argument("balance", type=float); a.add_argument("--owner", default=os.environ.get("UANGKU_OWNER", "ade"))
+    a = sub.add_parser("acc-list"); a.add_argument("--owner", default=os.environ.get("UANGKU_OWNER", "ade"))
     a = sub.add_parser("invest"); a.add_argument("kind"); a.add_argument("symbol")
     a.add_argument("qty", type=float); a.add_argument("avg_price", type=float)
-    a.add_argument("--date"); a.add_argument("--note", default="")
+    a.add_argument("--date"); a.add_argument("--note", default=""); a.add_argument("--owner", default=os.environ.get("UANGKU_OWNER", "ade"))
     a = sub.add_parser("price"); a.add_argument("symbol"); a.add_argument("price", type=float)
     a.add_argument("--source", default="")
-    a = sub.add_parser("flow"); a.add_argument("--month")
-    a = sub.add_parser("del-tx"); a.add_argument("id", type=int)
+    a = sub.add_parser("flow"); a.add_argument("--month"); a.add_argument("--owner", default=os.environ.get("UANGKU_OWNER", "ade"))
+    a = sub.add_parser("del-tx"); a.add_argument("id", type=int); a.add_argument("--owner", default=os.environ.get("UANGKU_OWNER", "ade"))
     args = ap.parse_args()
 
     if args.cmd in ("out", "in"):
         direction = "out" if args.cmd == "out" else "in"
         tid = next_id("transactions")
         r = call("POST", "/rest/v1/transactions",
-                 {"id": tid, "amount": args.amount, "note": args.note,
+                 {"id": tid, "owner_id": args.owner, "amount": args.amount, "note": args.note,
                   "direction": direction, "category": args.cat,
                   "date": args.date or today(),
                   **({"account_id": args.acc} if args.acc else {})},
                  prefer="return=representation")
         print({"id": tid, "ok": True})
         if args.acc:
-            acc = call("GET", f"/rest/v1/accounts?id=eq.{args.acc}&select=id,name,balance")[0]
+            acc = call("GET", f"/rest/v1/accounts?id=eq.{args.acc}&owner_id=eq.{args.owner}&select=id,name,balance")[0]
             new_bal = acc["balance"] + (args.amount if direction == "in" else -args.amount)
-            call("PATCH", f"/rest/v1/accounts?id=eq.{args.acc}",
+            call("PATCH", f"/rest/v1/accounts?id=eq.{args.acc}&owner_id=eq.{args.owner}",
                  {"balance": new_bal, "updated_at": datetime.now(WIB).isoformat()})
             print(f"saldo {acc['name']}: {rp(acc['balance'])} -> {rp(new_bal)}")
     elif args.cmd == "acc-add":
         aid = next_id("accounts")
         print(call("POST", "/rest/v1/accounts",
-                   {"id": aid, "name": args.name, "kind": args.kind,
+                   {"id": aid, "owner_id": args.owner, "name": args.name, "kind": args.kind,
                     "balance": args.balance},
                    prefer="return=representation"))
     elif args.cmd == "acc-balance":
-        print(call("PATCH", f"/rest/v1/accounts?id=eq.{args.id}",
+        print(call("PATCH", f"/rest/v1/accounts?id=eq.{args.id}&owner_id=eq.{args.owner}",
                    {"balance": args.balance, "updated_at": datetime.now(WIB).isoformat()},
                    prefer="return=representation"))
     elif args.cmd == "acc-list":
-        accs = call("GET", "/rest/v1/accounts?select=*&order=kind,name")
+        accs = call("GET", f"/rest/v1/accounts?select=*&owner_id=eq.{args.owner}&order=kind,name")
         for a in accs:
             print(f"[{a['id']}] {a['kind']:7} {a['name']:20} {rp(a['balance'])}")
         net = sum(a["balance"] for a in accs if a["kind"] != "invest")
@@ -144,7 +144,7 @@ def main():
     elif args.cmd == "invest":
         iid = next_id("investments")
         print(call("POST", "/rest/v1/investments",
-                   {"id": iid, "kind": args.kind, "symbol": args.symbol,
+                   {"id": iid, "owner_id": args.owner, "kind": args.kind, "symbol": args.symbol,
                     "qty": args.qty, "avg_price": args.avg_price,
                     "date": args.date or today(), "note": args.note},
                    prefer="return=representation"))
@@ -158,7 +158,7 @@ def main():
         y, m = map(int, month.split("-"))
         end = (datetime(y + (m == 12), m % 12 + 1, 1)).strftime("%Y-%m-%d")
         txs = call("GET", "/rest/v1/transactions?select=*"
-                          f"&date=gte.{month}-01&date=lt.{end}&order=date")
+                          f"&owner_id=eq.{args.owner}&date=gte.{month}-01&date=lt.{end}&order=date")
         income = sum(t["amount"] for t in txs if t["direction"] == "in")
         expense = sum(t["amount"] for t in txs if t["direction"] == "out")
         print(f"[{month}] masuk: {rp(income)} | keluar: {rp(expense)} | surplus: {rp(income - expense)}")
@@ -172,7 +172,7 @@ def main():
             for c, (v, n) in sorted(agg.items(), key=lambda x: -x[1][0]):
                 print(f"  {label} {c}: {rp(v)} ({n}x)")
     elif args.cmd == "del-tx":
-        call("DELETE", f"/rest/v1/transactions?id=eq.{args.id}")
+        call("DELETE", f"/rest/v1/transactions?id=eq.{args.id}&owner_id=eq.{args.owner}")
         print({"id": args.id, "ok": True, "deleted": True})
 
 

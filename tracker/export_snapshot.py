@@ -24,7 +24,10 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-OUT = Path(os.environ.get("UANGKU_WEB_DIR", Path(__file__).resolve().parents[1] / "web")) / "data.json"
+_default_web = Path(__file__).resolve().parents[1] / "web"
+if not _default_web.exists():
+    _default_web = Path.home() / "workspace" / "uang-tracker-web"
+OUT = Path(os.environ.get("UANGKU_WEB_DIR", _default_web)) / "data.json"
 WIB = timezone(timedelta(hours=7))
 SECRETS = Path(os.path.expanduser(os.environ.get("UANGKU_SECRETS", "~/.secrets/supabase-uangku")))
 EGRESS_ENV = Path(os.path.expanduser(os.environ.get("UANGKU_EGRESS_ENV", "~/.secrets/egress-proxy-env")))
@@ -59,13 +62,16 @@ def get(table, query):
 
 
 def main():
+    owner = os.environ.get("UANGKU_OWNER", "ade")
+    q = f"owner_id=eq.{owner}"
     snap = {
+        "owner_id": owner,
         "version": int(time.time()),
         "exported_at": datetime.now(WIB).strftime("%Y-%m-%d %H:%M:%S"),
-        "accounts": get("accounts", "select=*&order=kind,name"),
+        "accounts": get("accounts", f"select=*&{q}&order=kind,name"),
         "transactions": get("transactions",
-                            "select=*&order=date.desc,id.desc&limit=2000"),
-        "investments": get("investments", "select=*&order=kind,symbol"),
+                            f"select=*&{q}&order=date.desc,id.desc&limit=2000"),
+        "investments": get("investments", f"select=*&{q}&order=kind,symbol"),
         "prices": get("prices", "select=*&order=symbol"),
     }
     OUT.write_text(json.dumps(snap, ensure_ascii=False, separators=(",", ":")))

@@ -10,7 +10,7 @@
    (v15 = grup "Top up e-wallet" jadi "Langganan Claude" + ikon logo Claude, 2026-11-12.)
    (v16 = merge snapshot transaksi jadi upsert server-menang, 2026-11-12.)
    (v17 = baris versi app+data di footer, untuk diagnosis cache, 2026-11-12.) */
-const CACHE = "uangku-v23";
+const CACHE = "uangku-v24";
 const SHELL = ["./", "./index.html", "./styles.css", "./app.js", "./manifest.json",
                "./icon-192.png", "./icon-512.png"];
 
@@ -25,6 +25,7 @@ self.addEventListener("activate", (e) => {
 self.addEventListener("fetch", (e) => {
   const url = new URL(e.request.url);
   if (url.pathname.endsWith("data.json")) return; // snapshot: selalu network, jangan cache
+  if (url.pathname.startsWith("/api/")) return; // API multi-user: selalu network
   e.respondWith(
     caches.match(e.request).then((hit) => hit || fetch(e.request).then((res) => {
       const copy = res.clone();

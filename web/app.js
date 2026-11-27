@@ -1,9 +1,14 @@
-/* UangKu v3 — local-first. TANPA API: semua data di localStorage HP.
-   data.json (statis, dibundel saat deploy) dipakai sebagai seed & sync satu arah:
-   - transactions: digabung append-only berdasarkan id
-   - accounts/investments/prices: diganti snapshot bila snapshot.version lebih baru
-   Chat "kopi 20rb" tetap dicatat via backend, lalu snapshot di-export & deploy ulang. */
-const LS_KEY = "uq_local_v1";
+/* UangKu multi-user — PWA local-first per owner.
+   Dengan API key: snapshot diambil dari /api/snapshot (data owner itu saja).
+   Tanpa API key: fallback data.json statis (mode lama Ade).
+   Data lokal dipisah per owner agar dua user di browser yang sama tidak tercampur. */
+const API_KEY_LS = "uq_api_key";
+const OWNER_LS = "uq_owner";
+const getApiKey = () => { try { return localStorage.getItem(API_KEY_LS) || ""; } catch (e) { return ""; } };
+const getOwner = () => { try { return localStorage.getItem(OWNER_LS) || ""; } catch (e) { return ""; } };
+const lsKey = () => getOwner() ? `uq_local_v1_${getOwner()}` : "uq_local_v1";
+const ovKey = () => getOwner() ? `uq_overrides_v1_${getOwner()}` : "uq_overrides_v1";
+const auditKey = () => getOwner() ? `uq_audit_v1_${getOwner()}` : "uq_audit_v1";
 const $ = (id) => document.getElementById(id);
 const fmtRp = (n) => "Rp " + Math.round(n || 0).toLocaleString("id-ID");
 const MONTHS_ID = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
@@ -42,7 +47,7 @@ const todayStr = () => {
 /* ---------- penyimpanan lokal ---------- */
 function loadLocal() {
   try {
-    const raw = localStorage.getItem(LS_KEY);
+    const raw = localStorage.getItem(lsKey());
     if (raw) {
       const d = JSON.parse(raw);
       if (d && Array.isArray(d.accounts)) DB = Object.assign(DB, d);
@@ -50,7 +55,7 @@ function loadLocal() {
   } catch (e) { /* abaikan, pakai kosong */ }
 }
 function saveLocal() {
-  try { localStorage.setItem(LS_KEY, JSON.stringify(DB)); } catch (e) { toast("Penyimpanan penuh!"); }
+  try { localStorage.setItem(lsKey(), JSON.stringify(DB)); } catch (e) { toast("Penyimpanan penuh!"); }
 }
 
 /* ---------- perubahan lokal: hapus & edit yang awet ---------- */
@@ -59,30 +64,39 @@ function saveLocal() {
    perubahan lokal disimpan terpisah (tombstone + override) dan diterapkan
    ulang setiap merge. Data server TIDAK diubah — hapus/ubah permanen tetap
    lewat chat. */
-const OV_KEY = "uq_overrides_v1";
-const AUDIT_KEY = "uq_audit_v1";
+/* kunci override/audit dinamis per owner: lihat ovKey()/auditKey() di atas */
 const isLocalId = (id) => String(id).startsWith("l");
 function loadOverrides() {
   try {
-    const d = JSON.parse(localStorage.getItem(OV_KEY) || "{}");
+    const d = JSON.parse(localStorage.getItem(ovKey()) || "{}");
     return { deletedTx: [], deletedAcc: [], deletedInv: [], editedTx: {}, editedAcc: {}, ...(d || {}) };
   } catch (e) { return { deletedTx: [], deletedAcc: [], deletedInv: [], editedTx: {}, editedAcc: {} }; }
 }
 function saveOverrides(ov) {
-  try { localStorage.setItem(OV_KEY, JSON.stringify(ov)); } catch (e) { /* abaikan */ }
+  try { localStorage.setItem(ovKey(), JSON.stringify(ov)); } catch (e) { /* abaikan */ }
 }
 function loadAudit() {
-  try { const a = JSON.parse(localStorage.getItem(AUDIT_KEY) || "[]"); return Array.isArray(a) ? a : []; } catch (e) { return []; }
+  try { const a = JSON.parse(localStorage.getItem(auditKey()) || "[]"); return Array.isArray(a) ? a : []; } catch (e) { return []; }
 }
 function logAudit(text) {
   try {
     const a = loadAudit();
     a.unshift({ ts: new Date().toISOString(), text });
-    localStorage.setItem(AUDIT_KEY, JSON.stringify(a.slice(0, 50)));
+    localStorage.setItem(auditKey(), JSON.stringify(a.slice(0, 50)));
   } catch (e) { /* abaikan */ }
 }
 function mergeSnapshot(snap) {
   if (!snap || !Array.isArray(snap.accounts)) return "error";
+  if (snap.owner_id) {
+    const prevOwner = getOwner();
+    try { localStorage.setItem(OWNER_LS, snap.owner_id); } catch (e) { /* abaikan */ }
+    if (prevOwner && prevOwner !== snap.owner_id) {
+      DB = JSON.parse(JSON.stringify(snap));
+      saveLocal();
+      return "updated";
+    }
+    DB.owner_id = snap.owner_id;
+  }
   if (!DB.accounts.length && !DB.transactions.length) {
     DB = JSON.parse(JSON.stringify(snap));
     applyOverrides();
@@ -830,11 +844,27 @@ $("fAdd").addEventListener("click", () => {
     setArusSub("history");
     return;
   }
-  DB.transactions.push({ id: "l" + Date.now(), ...fields });
-  adjBalance(accId, direction, amount);
-  saveLocal();
-  $("fAmount").value = ""; $("fAmount").dataset.raw = ""; $("fNote").value = "";
-  toast("Tercatat"); renderAll();
+  const recordLocal = () => {
+    DB.transactions.push({ id: "l" + Date.now(), ...fields });
+    adjBalance(accId, direction, amount);
+    saveLocal();
+    $("fAmount").value = ""; $("fAmount").dataset.raw = ""; $("fNote").value = "";
+    toast("Tercatat"); renderAll();
+  };
+  if (getApiKey()) {
+    apiFetch("/api/transactions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(fields),
+    }).then(async (res) => {
+      if (!res.ok) throw new Error("api");
+      $("fAmount").value = ""; $("fAmount").dataset.raw = ""; $("fNote").value = "";
+      await syncSnapshot();
+      toast("Tercatat"); renderAll();
+    }).catch(() => { toast("API gagal — tersimpan lokal"); recordLocal(); });
+    return;
+  }
+  recordLocal();
 });
 $("fCancel").addEventListener("click", cancelEdit);
 $("filterDir").addEventListener("change", renderTx);
@@ -871,6 +901,7 @@ let lastFocus = null;
 function openSettings() {
   lastFocus = document.activeElement;
   renderDataInfo();
+  updateOwnerInfo();
   $("settingsModal").classList.remove("hidden");
   $("sCloseX").focus();
 }
@@ -879,6 +910,17 @@ function closeSettings() {
   if (lastFocus && lastFocus.focus) lastFocus.focus();
 }
 $("settingsBtn").addEventListener("click", openSettings);
+$("apiKeySave").addEventListener("click", async () => {
+  const key = $("apiKeyInput").value.trim();
+  try {
+    if (key) localStorage.setItem(API_KEY_LS, key); else localStorage.removeItem(API_KEY_LS);
+  } catch (e) { /* abaikan */ }
+  toast("Memuat data user…");
+  const st = await syncSnapshot();
+  updateOwnerInfo();
+  renderAll();
+  toast(st === "error" ? "Gagal login — cek API key" : "Login UangKu aktif");
+});
 $("sClose").addEventListener("click", closeSettings);
 $("sCloseX").addEventListener("click", closeSettings);
 $("settingsModal").addEventListener("click", (e) => { if (e.target === $("settingsModal")) closeSettings(); });
@@ -975,12 +1017,37 @@ document.querySelectorAll(".collapse-toggle").forEach((btn) =>
   }));
 
 /* ---------- boot ---------- */
+async function apiFetch(path, options = {}) {
+  const key = getApiKey();
+  const res = await fetch(path, {
+    ...options,
+    cache: "no-store",
+    headers: { ...(options.headers || {}), ...(key ? { Authorization: `Bearer ${key}` } : {}) },
+  });
+  return res;
+}
 async function syncSnapshot() {
   try {
+    if (getApiKey()) {
+      const res = await apiFetch("/api/snapshot");
+      if (res.status === 401) { toast("API key tidak valid"); return "error"; }
+      if (!res.ok) return "error";
+      return mergeSnapshot(await res.json());
+    }
     const res = await fetch("data.json", { cache: "no-store" });
     if (!res.ok) return "error";
     return mergeSnapshot(await res.json());
   } catch (e) { return "error"; }
+}
+function updateOwnerInfo() {
+  const el = $("ownerInfo");
+  if (!el) return;
+  const owner = getOwner();
+  el.textContent = getApiKey()
+    ? `Login API aktif${owner ? ` — user: ${owner}` : ""}.`
+    : "Belum login API. Tempel API key untuk memuat data user ini.";
+  const input = $("apiKeyInput");
+  if (input && getApiKey()) input.value = getApiKey();
 }
 
 (function init() {
